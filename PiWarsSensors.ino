@@ -1,3 +1,7 @@
+#include <NewPing.h>
+#include <Wire.h>
+#include <VL6180X.h>
+
 #define SONAR_NUM 3      // Number of ultrasonic sensors.
 #define MAX_DISTANCE 300 // Maximum distance in cm
 #define TOF1_pin 10
@@ -7,10 +11,6 @@
 #define ldrThreshold 700
 #define TOFcalibrationAmount 0
 #define numberOfSamples 10
-
-#include <NewPing.h>
-#include <Wire.h>
-#include <VL6180X.h>
 
 VL6180X sensor1;
 VL6180X sensor2;
