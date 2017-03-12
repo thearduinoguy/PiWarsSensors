@@ -3,14 +3,15 @@
 #include <VL6180X.h>
 
 #define SONAR_NUM 3      // Number of ultrasonic sensors.
-#define MAX_DISTANCE 300 // Maximum distance in cm
+#define MAX_DISTANCE 200 // Maximum distance in cm
 #define TOF1_pin 10
 #define TOF2_pin 11
 #define TOF3_pin 12
 
 #define ldrThreshold 700
-#define TOFcalibrationAmount 0
-#define numberOfSamples 10
+#define TOFcalibrationAmount 5
+#define UltrasonicCalibrationAmount 123
+#define numberOfSamples 10 // for ULtrasonics only
 
 VL6180X sensor1;
 VL6180X sensor2;
@@ -22,10 +23,11 @@ NewPing sonar[SONAR_NUM] = {   // Sensor object array.
         NewPing(8, 9, MAX_DISTANCE)
 };
 
-unsigned int data[10];
-unsigned int average[3][numberOfSamples];
+int data[10];
+int average[3][numberOfSamples];
 int arrayIndex = 0;
 uint8_t lineFollower = 0;
+long lastPress;
 
 void setup() {
 
@@ -75,24 +77,20 @@ void setup() {
         sensor1.startInterleavedContinuous(100);
         sensor2.startInterleavedContinuous(100);
         sensor3.startInterleavedContinuous(100);
+        lastPress = millis();
 }
 
 void loop()
 {
+        for (int x=0; x<SONAR_NUM; x++)
+        {
+          delay(29);
+          unsigned int distanceReceived = sonar[0].ping_mm();
+            average[x][arrayIndex] = distanceReceived-UltrasonicCalibrationAmount;
+            if (average[x][arrayIndex]<0) average[x][arrayIndex] = 0;
+          if (average[x][arrayIndex]>(MAX_DISTANCE*10)) average[x][arrayIndex] = 0;
 
-        //int distanceReceived = sonar[i].ping_median(2); // averaged value (much slower)
-        delay(29);
-        unsigned int distanceReceived = sonar[0].ping_mm();
-        average[0][arrayIndex] = distanceReceived;
-        //data[0] = distanceReceived;
-        delay(29);
-        distanceReceived = sonar[1].ping_mm();
-        average[1][arrayIndex] = distanceReceived;
-        //data[1] = distanceReceived;
-        delay(29);
-        distanceReceived = sonar[2].ping_mm();
-        average[2][arrayIndex] = distanceReceived;
-        //data[2] = distanceReceived;
+        }
         arrayIndex++;
         if (arrayIndex>(numberOfSamples-1)) arrayIndex=0;
 
@@ -100,22 +98,16 @@ void loop()
         unsigned long averageB = 0;
         unsigned long averageC = 0;
 
-        for (int x=0; x<(numberOfSamples-1); x++)
+        for (int x=0; x<numberOfSamples; x++)
         {
                 averageA = averageA + average[0][x];
                 averageB = averageB + average[1][x];
                 averageC = averageC + average[2][x];
-                Serial.print(average[0][x]);
-                Serial.print(" ");
         }
-        Serial.println();
 
-        averageA = (unsigned long)averageA/numberOfSamples;
-        data[0] = averageA;
-        averageB = (unsigned long)averageB/numberOfSamples;
-        data[1] = averageB;
-        averageC = (unsigned long)averageC/numberOfSamples;
-        data[2] = averageC;
+        data[0] = (unsigned long)averageA/numberOfSamples;
+        data[1] = (unsigned long)averageB/numberOfSamples;
+        data[2] = (unsigned long)averageC/numberOfSamples;
 
         data[3] = sensor1.readRangeContinuousMillimeters()-TOFcalibrationAmount;
         data[4] = sensor2.readRangeContinuousMillimeters()-TOFcalibrationAmount;
@@ -127,8 +119,8 @@ void loop()
 
 void outputJSONString()
 {
-        char buffer [50];
-        sprintf (buffer, "{\"UL\":%u,\"UC\":%u,\"UR\":%u,\"TL\":%d,\"TC\":%d,\"TR\":%d,\"LF\":%d}", data[0], data[1], data[2], data[3], data[4], data[5], lineFollower);
+        char buffer [100];
+        sprintf (buffer, "{\"UL\":%u,\"UC\":%u,\"UR\":%u,\"TL\":%u,\"TC\":%u,\"TR\":%u,\"LF\":%u}", data[0], data[1], data[2], data[3], data[4], data[5], lineFollower);
         Serial.println(buffer);
 }
 
